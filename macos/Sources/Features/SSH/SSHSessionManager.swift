@@ -9,10 +9,10 @@ final class SSHSessionManagerController: NSWindowController {
     private var editingMonitor: Any?
 
     private init() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 943, height: 520),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1085, height: 520),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "SSH Connections"
-        window.minSize = NSSize(width: 782, height: 400)
+        window.minSize = NSSize(width: 900, height: 400)
         window.isReleasedWhenClosed = false
         super.init(window: window)
         window.contentView = NSHostingView(rootView: SSHSessionManager(store: store) { [weak self] profile, newWindow in
