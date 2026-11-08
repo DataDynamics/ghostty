@@ -167,8 +167,8 @@
                                     <action selector="newTab:" target="-1" id="KoW-K7-hw5"/>
                                 </connections>
                             </menuItem>
-                            <menuItem title="SSH Connections…" id="ssh-manager-menu">
-                                <modifierMask key="keyEquivalentModifierMask"/>
+                            <menuItem title="SSH Connections…" keyEquivalent="s" id="ssh-manager-menu">
+                                <modifierMask key="keyEquivalentModifierMask" command="YES"/>
                                 <connections>
                                     <action selector="showSSHConnections:" target="-1" id="ssh-manager-action"/>
                                 </connections>

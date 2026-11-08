@@ -111,13 +111,13 @@ enum SSHRuntime {
             var environment = ProcessInfo.processInfo.environment
             environment.removeValue(forKey: askpassMarker)
             environment.removeValue(forKey: specificationKey)
-            // This path bypasses `ghostty +ssh`, which installs remote terminfo
-            // or falls back to xterm-256color. Do not advertise xterm-ghostty
-            // without ensuring that the remote host can interpret it.
-            if environment["TERM"] == "xterm-ghostty" {
-                environment["TERM"] = "xterm-256color"
+            if original.profile.terminalType != .inherited {
+                environment["TERM"] = original.profile.terminalType.rawValue
             }
-            environment["LC_ALL"] = "C"
+            // Keep the user's character locale intact. Only authentication prompt
+            // language must be stable; LC_ALL=C would break multibyte shell editing.
+            environment.removeValue(forKey: "LC_ALL")
+            environment["LC_MESSAGES"] = "C"
             environment["SSH_ASKPASS"] = executable.path
             environment["SSH_ASKPASS_REQUIRE"] = "force"
             environment[askpassMarker] = "1"
@@ -134,7 +134,7 @@ enum SSHRuntime {
                 spec.expiresAt = Date().addingTimeInterval(24 * 60 * 60)
                 try writeSpecification(spec, to: attemptURL)
                 environment[specificationKey] = attemptURL.path
-                let status = try runSSH(arguments, environment: environment)
+                let status = try runSSH(arguments, environment: environment, encoding: spec.profile.encoding)
                 try? FileManager.default.removeItem(at: attempt)
                 print("\r\nSSH exited with status \(status).")
                 print("Press R then Enter to reconnect, M then Enter for manual authentication, or Enter to finish.")
@@ -179,11 +179,18 @@ enum SSHRuntime {
                                        username: config["user"] ?? NSUserName(), hasProxy: hasProxy)
     }
 
-    private static func runSSH(_ arguments: [String], environment: [String: String]) throws -> Int32 {
-        try SSHChildProcess.run(executable: "/usr/bin/ssh", arguments: arguments, environment: environment) { pid in
+    private static func runSSH(_ arguments: [String], environment: [String: String],
+                               encoding: SSHProfile.Encoding) throws -> Int32 {
+        let onSpawn: (pid_t?) -> Void = { pid in
             childLock.lock()
             activeChild = pid
             childLock.unlock()
         }
+        if encoding == .utf8 {
+            return try SSHChildProcess.run(executable: "/usr/bin/ssh", arguments: arguments,
+                                           environment: environment, onSpawn: onSpawn)
+        }
+        return try SSHEncodingRelay.run(executable: "/usr/bin/ssh", arguments: arguments,
+                                        environment: environment, encoding: encoding, onSpawn: onSpawn)
     }
 }

@@ -6,18 +6,24 @@ final class SSHSessionManagerController: NSWindowController {
     static let shared = SSHSessionManagerController()
     private let store = SSHSessionStore()
     private var ghostty: Ghostty.App?
+    private var editingMonitor: Any?
 
     private init() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 820, height: 520),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 943, height: 520),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "SSH Connections"
-        window.minSize = NSSize(width: 680, height: 400)
+        window.minSize = NSSize(width: 782, height: 400)
         window.isReleasedWhenClosed = false
         super.init(window: window)
         window.contentView = NSHostingView(rootView: SSHSessionManager(store: store) { [weak self] profile, newWindow in
             self?.connect(profile, newWindow: newWindow)
         })
         window.center()
+        editingMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let root = self?.window, SSHTextEditing.belongs(event.window ?? NSApp.keyWindow, to: root),
+                  SSHTextEditing.handle(event, in: event.window ?? NSApp.keyWindow) else { return event }
+            return nil
+        }
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -94,13 +100,18 @@ private struct SSHSessionManager: View {
                         ForEach(profiles) { profile in
                             HStack {
                                 Image(systemName: profile.favorite ? "star.fill" : "server.rack").foregroundColor(.secondary)
-                                VStack(alignment: .leading) {
-                                    Text(profile.name)
-                                    Text((profile.username.isEmpty ? "" : profile.username + "@") + profile.destination)
-                                        .font(.caption).foregroundColor(.secondary)
-                                }
-                                Spacer()
-                                Text(profile.authentication.title).font(.caption).foregroundColor(.secondary)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(profile.name).fontWeight(.medium).lineLimit(1)
+                                    HStack(spacing: 12) {
+                                        Label(profile.username.isEmpty ? "From SSH config" : profile.username, systemImage: "person")
+                                            .fixedSize(horizontal: true, vertical: false)
+                                        Label(profile.destination, systemImage: "network").lineLimit(1)
+                                    }.font(.caption).foregroundColor(.secondary)
+                                }.frame(maxWidth: .infinity, alignment: .leading).layoutPriority(1)
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    Text(profile.authentication.title)
+                                    Text(profile.terminalType.title + " · " + profile.encoding.rawValue)
+                                }.font(.caption).foregroundColor(.secondary).lineLimit(1).frame(maxWidth: 220, alignment: .trailing)
                             }
                             .padding(.vertical, 3).contentShape(Rectangle()).tag(profile.id)
                             .onTapGesture(count: 2) { connect(profile, false) }

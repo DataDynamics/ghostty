@@ -51,8 +51,9 @@ enum SSHAuthentication {
         }
         alert.addButton(withTitle: "Cancel")
         // A tab closing while the sheet is visible must not leave an orphan prompt.
+        let sshPID = getppid()
         let timer = Timer(timeInterval: 0.5, repeats: true) { _ in
-            if kill(launcherPID, 0) != 0 { app.abortModal(); alert.window.orderOut(nil) }
+            if kill(launcherPID, 0) != 0 || kill(sshPID, 0) != 0 { app.abortModal(); alert.window.orderOut(nil) }
         }
         RunLoop.main.add(timer, forMode: .modalPanel)
         defer { timer.invalidate() }

@@ -88,3 +88,14 @@ Consumes store/runtime and existing TerminalController APIs.
 - Existing unrelated KeyboardLayoutTests.characterAppliesModifiers failed because current Korean layout returned ㅁ for both shifted and unmodified KeyA. No input-source setting or unrelated test was changed.
 - Launched the built debug app. Computer Use inventory confirms com.mitchellh.ghostty.debug running, but attaching to the app accessibility tree repeatedly timed out. Interactive manager/dialog GUI validation remains unconfirmed.
 - Prior entries about missing nu/GhosttyKit describe the initial attempt; those build blockers are resolved. SwiftLint remains unavailable.
+
+## Connection settings and text editing follow-up
+
+- Increase manager and editor width by 15%; show username and host separately.
+- New profiles default to password; preserve older profiles' authentication.
+- Add persistent terminal and encoding choices with xterm-256color / UTF-8 defaults.
+- Use system iconv and a separate PTY for legacy encoding; C child startup performs only async-signal-safe operations before execve. UTF-8 remains on the direct path.
+- Use nonblocking PTY writes and bounded paste buffering to avoid bidirectional I/O deadlocks; propagate terminal size and restore the outer terminal state.
+- Scope native clipboard/select-all/undo handling to all manager and sheet inputs, including secure fields, as explicitly requested. Assign Command-S to the manager menu.
+- Preserve character locale instead of forcing LC_ALL=C; force only LC_MESSAGES for authentication prompts.
+- Fresh code review found missing command modifier and blocking PTY input writes; both corrected. ReleaseLocal Universal build passed. Tests not run at the user's explicit request; runtime/GUI validation of these new options remains unconfirmed.

@@ -14,6 +14,40 @@ struct SSHProfile: Codable, Identifiable, Equatable {
         }
     }
 
+    enum TerminalType: String, Codable, CaseIterable, Identifiable {
+        case xterm256 = "xterm-256color", xterm, linux, vt100, vt220, ansi
+        case screen256 = "screen-256color", screen, tmux256 = "tmux-256color"
+        case ghostty = "xterm-ghostty", inherited = "inherit"
+        var id: Self { self }
+        var title: String { self == .inherited ? "Inherit local terminal" : rawValue }
+    }
+
+    enum Encoding: String, Codable, CaseIterable, Identifiable {
+        case utf8 = "UTF-8", eucKR = "EUC-KR", cp949 = "CP949"
+        case shiftJIS = "SHIFT_JIS", eucJP = "EUC-JP"
+        case gb18030 = "GB18030", gbk = "GBK", big5 = "BIG5"
+        case latin1 = "ISO-8859-1", latin9 = "ISO-8859-15", windows1252 = "WINDOWS-1252"
+        case windows1251 = "WINDOWS-1251", koi8R = "KOI8-R"
+        var id: Self { self }
+        var title: String {
+            switch self {
+            case .utf8: return "UTF-8 (Unicode)"
+            case .eucKR: return "EUC-KR (Korean)"
+            case .cp949: return "CP949 (Korean / Windows)"
+            case .shiftJIS: return "Shift JIS (Japanese)"
+            case .eucJP: return "EUC-JP (Japanese)"
+            case .gb18030: return "GB18030 (Simplified Chinese)"
+            case .gbk: return "GBK (Simplified Chinese)"
+            case .big5: return "Big5 (Traditional Chinese)"
+            case .latin1: return "ISO-8859-1 (Western European)"
+            case .latin9: return "ISO-8859-15 (Western European)"
+            case .windows1252: return "Windows-1252 (Western European)"
+            case .windows1251: return "Windows-1251 (Cyrillic)"
+            case .koi8R: return "KOI8-R (Cyrillic)"
+            }
+        }
+    }
+
     var id = UUID()
     var name = ""
     var folderID: UUID?
@@ -21,11 +55,42 @@ struct SSHProfile: Codable, Identifiable, Equatable {
     var destination = ""
     var username = ""
     var port: Int?
-    var authentication: Authentication = .configuration
+    var authentication: Authentication = .password
+    var terminalType: TerminalType = .xterm256
+    var encoding: Encoding = .utf8
     var identityFile = ""
     var certificateFile = ""
     var passwordID: UUID?
     var passphraseID: UUID?
+
+    init(name: String = "", destination: String = "") {
+        self.name = name
+        self.destination = destination
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, folderID, favorite, destination, username, port, authentication
+        case identityFile, certificateFile, passwordID, passphraseID, terminalType, encoding
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(UUID.self, forKey: .id)
+        name = try values.decode(String.self, forKey: .name)
+        folderID = try values.decodeIfPresent(UUID.self, forKey: .folderID)
+        favorite = try values.decodeIfPresent(Bool.self, forKey: .favorite) ?? false
+        destination = try values.decode(String.self, forKey: .destination)
+        username = try values.decodeIfPresent(String.self, forKey: .username) ?? ""
+        port = try values.decodeIfPresent(Int.self, forKey: .port)
+        // Keep the auth method of older saved profiles; only new profiles default to password.
+        authentication = try values.decodeIfPresent(Authentication.self, forKey: .authentication) ?? .configuration
+        identityFile = try values.decodeIfPresent(String.self, forKey: .identityFile) ?? ""
+        certificateFile = try values.decodeIfPresent(String.self, forKey: .certificateFile) ?? ""
+        passwordID = try values.decodeIfPresent(UUID.self, forKey: .passwordID)
+        passphraseID = try values.decodeIfPresent(UUID.self, forKey: .passphraseID)
+        terminalType = try values.decodeIfPresent(TerminalType.self, forKey: .terminalType) ?? .xterm256
+        encoding = try values.decodeIfPresent(Encoding.self, forKey: .encoding) ?? .utf8
+    }
 
     func validate() throws {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {

@@ -118,7 +118,7 @@ esac
             main = root / "main.swift"
             main.write_text((repo / "macos/Tests/SSH/helper-fixture.swift.txt").read_text())
             sources = ["SSHProfile", "SSHAuthenticationPolicy", "SSHChildProcess", "SSHCredentialStore",
-                       "SSHAuthentication", "SSHHelperTrust", "SSHRuntime"]
+                       "SSHAuthentication", "SSHHelperTrust", "SSHRuntime", "SSHEncodingConverter", "SSHEncodingRelay"]
             compile_sources = []
             for name in sources:
                 source = (repo / f"macos/Sources/Features/SSH/{name}.swift").read_text()
@@ -133,8 +133,11 @@ esac
                 copy = root / f"{name}.swift"
                 copy.write_text(source)
                 compile_sources.append(str(copy))
+            spawn_object = root / "SSHPTYSpawn.o"
+            spawn_header = repo / "macos/Sources/Features/SSH/SSHPTYSpawn.h"
+            run("/usr/bin/clang", "-c", str(repo / "macos/Sources/Features/SSH/SSHPTYSpawn.c"), "-o", str(spawn_object))
             run("/usr/bin/swiftc", "-module-cache-path", str(root / "module-cache"),
-                *compile_sources, str(main), "-o", str(binary))
+                *compile_sources, str(main), str(spawn_object), "-import-objc-header", str(spawn_header), "-liconv", "-o", str(binary))
             run("/usr/bin/codesign", "--force", "--sign", "-", str(app.parent))
             pid, terminal = pty.fork()
             if pid == 0:

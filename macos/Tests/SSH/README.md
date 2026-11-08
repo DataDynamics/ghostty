@@ -31,3 +31,28 @@ Follow `macos/AGENTS.md`: build GhosttyKit first when needed, then run `macos/bu
 ## Validation in this workspace
 
 Native arm64 GhosttyKit and Debug app builds succeeded after installing Nushell 0.116.1, Zig 0.17.1 and Metal Toolchain 17F109. All 14 SSH tests passed in Xcode as well as the isolated core suite. The complete app unit-test run reported 303 passed, 1 failed and 1 skipped: the existing KeyboardLayoutTests.characterAppliesModifiers expects shifted KeyA to differ, but the current Korean layout produces ㅁ in both cases. The built debug app was launched; interactive UI inspection remains unconfirmed because the automation tool timed out attaching to its accessibility tree.
+
+## Connection settings update
+
+The manager opens with Command-S and a 943-point initial width (15% wider).
+Connection rows show username and host separately. All manager text inputs,
+including password/passphrase fields, support explicit Command-C/V/X/A/Z
+editing through a window-scoped event monitor.
+
+New connections default to Password authentication, xterm-256color, and UTF-8.
+Existing connections preserve their authentication method. Old profile files
+without terminal/encoding fields load with xterm-256color and UTF-8 defaults.
+Terminal choices include xterm, Linux console, VT100/VT220, ANSI, screen, tmux,
+Ghostty, and the inherited local terminal type. The remote host must have the
+selected terminal definition installed.
+
+Non-UTF-8 choices use macOS iconv for actual bidirectional conversion through
+an isolated PTY: EUC-KR, CP949, Shift JIS, EUC-JP, GB18030, GBK, Big5,
+ISO-8859-1/15, Windows-1252/1251, and KOI8-R. Select the encoding used by the
+remote application; this does not install or change the server's locale.
+Characters not representable in the selected encoding become question marks.
+UTF-8 uses the original direct SSH path without transcoding.
+
+The updated ReleaseLocal Universal app builds successfully. Per user request,
+no tests or UI automation were run for these additions. Code review identified
+and corrected the menu modifier mask and blocking PTY paste writes.

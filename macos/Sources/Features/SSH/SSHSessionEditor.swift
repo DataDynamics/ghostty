@@ -32,11 +32,19 @@ struct SSHSessionEditor: View {
                     }
                 }
                 TextField("Host or SSH alias", text: $profile.destination)
-                TextField("User (from SSH config if empty)", text: $profile.username)
+                TextField("Username", text: $profile.username)
                 TextField("Port (from SSH config if empty)", text: $port)
                 Picker("Authentication", selection: $profile.authentication) {
                     ForEach(SSHProfile.Authentication.allCases) { mode in Text(mode.title).tag(mode) }
                 }
+                Picker("Terminal type (TERM)", selection: $profile.terminalType) {
+                    ForEach(SSHProfile.TerminalType.allCases) { terminal in Text(terminal.title).tag(terminal) }
+                }
+                Picker("Character encoding", selection: $profile.encoding) {
+                    ForEach(SSHProfile.Encoding.allCases) { encoding in Text(encoding.title).tag(encoding) }
+                }
+                Text("Choose the terminal definition and character encoding supported by the server. UTF-8 is recommended.")
+                    .font(.caption).foregroundColor(.secondary)
                 if profile.authentication == .password {
                     Toggle("Save password in Keychain", isOn: $keepPassword)
                     if keepPassword {
@@ -68,7 +76,7 @@ struct SSHSessionEditor: View {
                 Button("Save", action: save).keyboardShortcut(.defaultAction).disabled(!store.canSave)
             }
         }
-        .padding(20).frame(width: 560)
+        .padding(20).frame(width: 644)
     }
 
     private func filePicker(_ title: String, path: Binding<String>) -> some View {
