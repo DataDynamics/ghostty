@@ -99,3 +99,11 @@ Consumes store/runtime and existing TerminalController APIs.
 - Scope native clipboard/select-all/undo handling to all manager and sheet inputs, including secure fields, as explicitly requested. Assign Command-S to the manager menu.
 - Preserve character locale instead of forcing LC_ALL=C; force only LC_MESSAGES for authentication prompts.
 - Fresh code review found missing command modifier and blocking PTY input writes; both corrected. ReleaseLocal Universal build passed. Tests not run at the user's explicit request; runtime/GUI validation of these new options remains unconfirmed.
+
+
+## Modal presentation and further width increase
+
+- Increase manager width from 1085 to 1302, minimum width from 900 to 1080, and editor width from 741 to 890 (20%, rounded up).
+- Present the connection manager app-modally. Guard Command-S reentry, provide Close/Escape dismissal, and stop modality on titlebar close.
+- Preserve the original terminal parent. Validate and prepare the connection while the manager is visible, then launch only after the modal loop returns.
+- Code review corrected list Escape interception and deferred terminal activation until after modal unwind. Tests omitted at user request; validate via optimized app build.

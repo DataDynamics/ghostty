@@ -34,8 +34,9 @@ Native arm64 GhosttyKit and Debug app builds succeeded after installing Nushell 
 
 ## Connection settings update
 
-The manager opens with Command-S and a 1085-point initial width (two successive 15% increases).
-Connection rows show username and host separately. All manager text inputs,
+The manager opens with Command-S and a 1302-point initial width (a further 20% increase).
+The manager is app-modal and closes on Close, Escape, or connection launch.
+The editor width is 890 points. Connection rows show username and host separately. All manager text inputs,
 including password/passphrase fields, support explicit Command-C/V/X/A/Z
 editing through a window-scoped event monitor.
 

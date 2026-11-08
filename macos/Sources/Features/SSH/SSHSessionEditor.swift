@@ -76,7 +76,7 @@ struct SSHSessionEditor: View {
                 Button("Save", action: save).keyboardShortcut(.defaultAction).disabled(!store.canSave)
             }
         }
-        .padding(20).frame(width: 741)
+        .padding(20).frame(width: 890)
     }
 
     private func filePicker(_ title: String, path: Binding<String>) -> some View {

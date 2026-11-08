@@ -2,20 +2,27 @@ import AppKit
 import SwiftUI
 
 @MainActor
-final class SSHSessionManagerController: NSWindowController {
+final class SSHSessionManagerController: NSWindowController, NSWindowDelegate {
     static let shared = SSHSessionManagerController()
     private let store = SSHSessionStore()
     private var ghostty: Ghostty.App?
     private var editingMonitor: Any?
+    private var presenting = false
+    private var pendingLaunch: (() -> Void)?
+    private weak var connectionParent: NSWindow?
 
     private init() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1085, height: 520),
-                              styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1302, height: 520),
+                              styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "SSH Connections"
-        window.minSize = NSSize(width: 900, height: 400)
+        window.minSize = NSSize(width: 1080, height: 400)
         window.isReleasedWhenClosed = false
         super.init(window: window)
-        window.contentView = NSHostingView(rootView: SSHSessionManager(store: store) { [weak self] profile, newWindow in
+        window.delegate = self
+        window.isRestorable = false
+        window.contentView = NSHostingView(rootView: SSHSessionManager(store: store, dismiss: { [weak self] in
+            self?.dismissModal()
+        }) { [weak self] profile, newWindow in
             self?.connect(profile, newWindow: newWindow)
         })
         window.center()
@@ -29,36 +36,70 @@ final class SSHSessionManagerController: NSWindowController {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func show(_ ghostty: Ghostty.App) {
+        guard let window else { return }
+        if presenting {
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
         self.ghostty = ghostty
+        connectionParent = TerminalController.preferredParent?.window
+        presenting = true
         showWindow(nil)
-        window?.makeKeyAndOrderFront(nil)
+        window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        NSApp.runModal(for: window)
+        window.orderOut(nil)
+        presenting = false
+        connectionParent = nil
+        let launch = pendingLaunch
+        pendingLaunch = nil
+        launch?()
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        dismissModal()
+    }
+
+    private func dismissModal() {
+        if let window, NSApp.modalWindow === window { NSApp.stopModal() }
+        window?.orderOut(nil)
     }
 
     private func connect(_ profile: SSHProfile, newWindow: Bool) {
         guard let ghostty else { return }
         do {
-            guard let executable = Bundle.main.executableURL else { throw SSHError.message("Ghostty executable could not be located.") }
+            guard Bundle.main.executableURL != nil else { throw SSHError.message("Ghostty executable could not be located.") }
             let specification = try SSHRuntime.prepare(profile)
-            var config = Ghostty.SurfaceConfiguration()
-            config.command = "\(SSHInvocation.shellQuote(executable.path)) --ghostty-ssh-launch \(SSHInvocation.shellQuote(specification.path))"
-            config.waitAfterCommand = true
-            let controller: TerminalController
-            if !newWindow, let parent = TerminalController.preferredParent?.window,
-               let tab = TerminalController.newTab(ghostty, from: parent, withBaseConfig: config) {
-                controller = tab
-            } else {
-                controller = TerminalController.newWindow(ghostty, withBaseConfig: config)
+            let parent = connectionParent ?? TerminalController.preferredParent?.window
+            pendingLaunch = { [weak self] in
+                guard let self else { SSHRuntime.discard(specification); return }
+                self.openConnection(ghostty, specification: specification, newWindow: newWindow, parent: parent)
             }
-            controller.window?.makeKeyAndOrderFront(nil)
-            // A surface creation failure must not leave an unused launch specification.
-            if controller.surfaceTree.root == nil { SSHRuntime.discard(specification) }
+            dismissModal()
         } catch { store.error = error.localizedDescription }
     }
+
+    private func openConnection(_ ghostty: Ghostty.App, specification: URL, newWindow: Bool, parent: NSWindow?) {
+        guard let executable = Bundle.main.executableURL else { SSHRuntime.discard(specification); return }
+        var config = Ghostty.SurfaceConfiguration()
+        config.command = "\(SSHInvocation.shellQuote(executable.path)) --ghostty-ssh-launch \(SSHInvocation.shellQuote(specification.path))"
+        config.waitAfterCommand = true
+        let controller: TerminalController
+        if !newWindow, let parent,
+           let tab = TerminalController.newTab(ghostty, from: parent, withBaseConfig: config) {
+            controller = tab
+        } else {
+            controller = TerminalController.newWindow(ghostty, withBaseConfig: config)
+        }
+        controller.window?.makeKeyAndOrderFront(nil)
+        if controller.surfaceTree.root == nil { SSHRuntime.discard(specification) }
+    }
+
 }
 
 private struct SSHSessionManager: View {
     @ObservedObject var store: SSHSessionStore
+    var dismiss: () -> Void
     var connect: (SSHProfile, Bool) -> Void
     @State private var search = ""
     @State private var filter = "all"
@@ -129,7 +170,7 @@ private struct SSHSessionManager: View {
                     .overlay {
                         if profiles.isEmpty { Text("No connections. Add one to get started.").foregroundColor(.secondary).allowsHitTesting(false) }
                     }
-                    .onExitCommand { selection = nil }
+                    .onExitCommand { dismiss() }
                 }.frame(minWidth: 450)
             }
             Divider()
@@ -141,6 +182,7 @@ private struct SSHSessionManager: View {
                 Button("Edit…") { editing = selected }.disabled(selected == nil)
                 Button("Reload") { store.reload() }
                 Spacer()
+                Button("Close", action: dismiss).keyboardShortcut(.cancelAction)
                 Button("New Window") { if let selected { connect(selected, true) } }.disabled(selected == nil)
                 Button("Connect") { if let selected { connect(selected, false) } }
                     .keyboardShortcut(.defaultAction).disabled(selected == nil)
