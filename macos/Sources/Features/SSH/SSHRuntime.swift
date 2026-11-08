@@ -111,6 +111,12 @@ enum SSHRuntime {
             var environment = ProcessInfo.processInfo.environment
             environment.removeValue(forKey: askpassMarker)
             environment.removeValue(forKey: specificationKey)
+            // This path bypasses `ghostty +ssh`, which installs remote terminfo
+            // or falls back to xterm-256color. Do not advertise xterm-ghostty
+            // without ensuring that the remote host can interpret it.
+            if environment["TERM"] == "xterm-ghostty" {
+                environment["TERM"] = "xterm-256color"
+            }
             environment["LC_ALL"] = "C"
             environment["SSH_ASKPASS"] = executable.path
             environment["SSH_ASKPASS_REQUIRE"] = "force"
